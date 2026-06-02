@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: forge-examples
+      - uses: actions/checkout@v4
+        with:
+          repository: fromforgesoftware/go-kit
+          path: go-kit
+      - uses: actions/checkout@v4
+        with:
+          repository: fromforgesoftware/gleipnir
+          path: gleipnir
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: forge-examples/go.mod
+      - name: build + vet + test (go-kit + gleipnir via workspace)
+        run: |
+          cd forge-examples
+          go work init . ../go-kit ../gleipnir
+          go build ./...
+          go vet ./...
+          go test ./...

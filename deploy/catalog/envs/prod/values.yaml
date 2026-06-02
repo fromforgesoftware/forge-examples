@@ -1,0 +1,20 @@
+replicaCount: 3
+
+database:
+  host: '' # set by the deploy pipeline / env overlay
+  name: catalog
+  schema: catalog
+  ssl: require
+  existingSecret: catalog-db
+
+aegisIssuer: 'https://aegis/realms/petstore' # set by the deploy pipeline / env overlay
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 75
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2

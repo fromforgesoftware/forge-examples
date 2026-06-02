@@ -1,0 +1,17 @@
+replicaCount: 2
+
+database:
+  host: '' # set by the deploy pipeline / env overlay
+  name: adoptions
+  schema: adoptions
+  ssl: require
+  existingSecret: adoptions-db
+
+aegisIssuer: 'http://aegis/realms/petstore'
+
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

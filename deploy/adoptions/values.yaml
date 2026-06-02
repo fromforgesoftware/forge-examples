@@ -1,0 +1,95 @@
+# Default values for the Adoptions chart.
+nameOverride: ''
+fullnameOverride: ''
+
+replicaCount: 3
+
+image:
+  repository: ghcr.io/fromforgesoftware/adoptions
+  pullPolicy: IfNotPresent
+  tag: '' # defaults to .Chart.AppVersion
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ''
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  fsGroup: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: true
+
+# Ports: REST/OpenAPI.
+ports:
+  http: 8080
+
+service:
+  type: ClusterIP
+  httpPort: 80
+
+# Database connection. Adoptions owns its own schema (search_path) inside the
+# target Postgres; consumers sharing a Postgres MUST use distinct schemas.
+database:
+  host: ''
+  port: '5432'
+  name: ''
+  schema: adoptions
+  ssl: require
+  # Credentials: reference an existing secret with keys DB_USER/DB_PASSWORD,
+  # or set username/password to have the chart create one.
+  existingSecret: ''
+  username: ''
+  password: ''
+
+# aegisIssuer is the realm issuer whose JWKS adoptions verifies bearer tokens
+# against (e.g. https://aegis/realms/petstore).
+aegisIssuer: ''
+
+# Downstream services the adoptions flow calls.
+catalogURL: '' # catalog REST base (e.g. http://catalog)
+gleipnirGRPCAddr: '' # gleipnir gRPC TokenService (e.g. gleipnir:9090)
+heraldURL: '' # herald REST base (e.g. http://herald)
+paymentConnection: '' # the Gleipnir connection id to vend a payment token from
+feeCents: 5000 # adoption fee charged via the vended token
+
+# Pre-install / pre-upgrade migration job (runs /app/migrator).
+migrationJob:
+  enabled: true
+  backoffLimit: 3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: '1'
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 75
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Shared HMAC secret gating /api admin routes to the Foundry gateway
+# (empty = open). Must match across Foundry and the products it manages.
+gatewaySecret: ''

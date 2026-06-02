@@ -1,0 +1,18 @@
+# Petstore catalog service: server + migrator into one distroless image.
+# Build context is the forge repo root. GOWORK=off resolves go/kit + gleipnir
+# from their published versions.
+ARG GO_VERSION=1.25
+FROM golang:${GO_VERSION}-alpine AS builder
+WORKDIR /src
+COPY examples/petstore/ /src/examples/petstore/
+WORKDIR /src/examples/petstore
+ENV GOWORK=off
+RUN CGO_ENABLED=0 go build -trimpath -o /out/server   ./cmd/catalog
+RUN CGO_ENABLED=0 go build -trimpath -o /out/migrator ./cmd/catalog-migrator
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=builder /out/server   /app/server
+COPY --from=builder /out/migrator /app/migrator
+EXPOSE 8080
+USER nonroot:nonroot
+ENTRYPOINT ["/app/server"]
