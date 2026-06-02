@@ -8,23 +8,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: forge-examples
-      - uses: actions/checkout@v4
-        with:
-          repository: fromforgesoftware/go-kit
-          path: go-kit
-      - uses: actions/checkout@v4
-        with:
-          repository: fromforgesoftware/gleipnir
-          path: gleipnir
       - uses: actions/setup-go@v5
         with:
-          go-version-file: forge-examples/go.mod
-      - name: build + vet + test (go-kit + gleipnir via workspace)
+          go-version-file: go.mod
+      - name: build + vet + test (pinned published modules)
+        env:
+          GOWORK: off
         run: |
-          cd forge-examples
-          go work init . ../go-kit ../gleipnir
           go build ./...
           go vet ./...
           go test ./...
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: helm lint
+        run: |
+          helm lint deploy/catalog
+          helm lint deploy/adoptions
