@@ -25,6 +25,23 @@ http://petstore-aegis/realms/petstore`), adoptions calls gleipnir over gRPC
 > `petstore-<svc>` names, so install into the same release/namespace or override
 > the `*URL`/`*Addr`/`aegisIssuer` values to match your platform's service names.
 
+## Quick start (`make dev`)
+
+From this directory, one command brings it all up in kind and waits for readiness:
+
+```sh
+make dev      # kind cluster -> deps -> dev postgres -> helm install -> wait -> next steps
+make status   # pods + migration jobs
+make forward  # port-forward UI (:8080) + console (:8081)
+make down     # uninstall + remove dev postgres (keeps the cluster)
+make clean    # delete the kind cluster
+```
+
+`make dev` automates the infra (cluster, a dev Postgres, `helm dependency build`,
+`helm upgrade --install --wait`) and then **prints the steps it can't do for you**
+(the aegis realm + public OIDC client, the gleipnir payment connection, and
+browser access). Those manual steps — and the full manual flow — are below.
+
 ## What you must provide (be honest)
 
 This chart renders cleanly, but a working install needs **you** to supply:
