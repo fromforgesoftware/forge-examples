@@ -1,0 +1,14 @@
+# Runtime SPA config. The entrypoint reads these env vars and renders
+# /config.js at container start. All values are PUBLIC (no OIDC secret).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "petstore-ui.configMapName" . }}
+  labels:
+    {{- include "petstore-ui.labels" . | nindent 4 }}
+data:
+  AEGIS_ISSUER: {{ .Values.config.aegisIssuer | quote }}
+  OIDC_CLIENT_ID: {{ .Values.config.oidcClientId | quote }}
+  OIDC_REDIRECT_URI: {{ .Values.config.oidcRedirectUri | quote }}
+  CATALOG_URL: {{ .Values.config.catalogUrl | quote }}
+  ADOPTIONS_URL: {{ .Values.config.adoptionsUrl | quote }}

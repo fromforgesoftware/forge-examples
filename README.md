@@ -6,7 +6,8 @@ so each example lives under `examples/` and is free to evolve independently.
 
 ```
 examples/
-  petstore/     # a catalog service + an adoptions orchestrator (this repo's example)
+  petstore/      # a catalog service + an adoptions orchestrator (Go, this repo's example)
+  petstore-ui/   # the petstore Vue SPA — aegis OIDC login over the catalog/adoptions APIs
 ```
 
 ## petstore
@@ -64,8 +65,26 @@ GOWORK=off go build ./...
 go test ./...
 ```
 
+## petstore-ui
+
+The reference **Vue 3 SPA** for petstore — a standalone app built on the
+published `@fromforgesoftware/vue-kit` + `ts-kit` (components, the JSON:API
+`ApiClient`, `SafeStorage`). It signs in against an **aegis** realm with **OIDC
+authorization_code + PKCE** (public client, S256 + state + nonce), then drives
+the catalog/adoptions JSON:API endpoints with the bearer token: browse pets,
+view a pet, place an adoption.
+
+See [`examples/petstore-ui/README.md`](examples/petstore-ui/README.md) for the
+realm/client setup and the login → browse → adopt flow. In short:
+
+```sh
+cd examples/petstore-ui
+NODE_AUTH_TOKEN=$(gh auth token) npm install   # kits are on GitHub Packages
+npm run dev                                     # http://localhost:5173
+```
+
 ## Roadmap
 
-- **examples/petstore-ui** (Phase 5b) — a Vue SPA on `vue-kit` / `ts-kit` with
-  aegis OIDC login, driving the catalog/adoptions APIs.
+- ~~**examples/petstore-ui** (Phase 5b) — a Vue SPA on `vue-kit` / `ts-kit` with
+  aegis OIDC login, driving the catalog/adoptions APIs.~~ ✅ done.
 - Fuller **talos-audit** and **gjallarhorn** notification wiring (Phase 5c).

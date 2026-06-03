@@ -1,0 +1,70 @@
+# Default values for the petstore-ui chart.
+nameOverride: ''
+fullnameOverride: ''
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/fromforgesoftware/petstore-ui
+  pullPolicy: IfNotPresent
+  tag: '' # defaults to .Chart.AppVersion
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ''
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101 # nginx:alpine "nginx" user
+  fsGroup: 101
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false # nginx writes its cache/pid
+
+ports:
+  http: 8080
+
+service:
+  type: ClusterIP
+  httpPort: 80
+
+# Runtime SPA configuration. These are PUBLIC values (no OIDC secret) rendered
+# into /config.js by the container entrypoint and surfaced via a ConfigMap, so
+# the same image serves any environment.
+config:
+  # Aegis realm issuer, e.g. https://aegis.example.com/realms/petstore
+  aegisIssuer: ''
+  # Public OIDC client id registered in the realm.
+  oidcClientId: 'petstore-ui'
+  # Redirect URI registered for this client (must end in /callback).
+  oidcRedirectUri: ''
+  # Petstore service REST bases reachable from the browser.
+  catalogUrl: ''
+  adoptionsUrl: ''
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

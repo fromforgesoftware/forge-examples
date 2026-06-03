@@ -1,0 +1,9 @@
+# Local / kind example overrides. Adjust hosts to your cluster ingress.
+replicaCount: 1
+
+config:
+  aegisIssuer: 'http://aegis.localhost/realms/petstore'
+  oidcClientId: 'petstore-ui'
+  oidcRedirectUri: 'http://petstore.localhost/callback'
+  catalogUrl: 'http://catalog.localhost'
+  adoptionsUrl: 'http://adoptions.localhost'

@@ -21,6 +21,27 @@ jobs:
           go build ./...
           go vet ./...
           go test ./...
+  ui:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        working-directory: examples/petstore-ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # vue-kit/ts-kit come from GitHub Packages (auth required even when public).
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@fromforgesoftware'
+      - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npx vue-tsc --noEmit
+      - run: npx vite build
   helm:
     runs-on: ubuntu-latest
     steps:
@@ -30,3 +51,4 @@ jobs:
         run: |
           helm lint examples/petstore/deploy/catalog
           helm lint examples/petstore/deploy/adoptions
+          helm lint examples/petstore-ui/deploy
