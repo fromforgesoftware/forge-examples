@@ -89,8 +89,26 @@ NODE_AUTH_TOKEN=$(gh auth token) npm install   # kits are on GitHub Packages
 npm run dev                                     # http://localhost:5173
 ```
 
+## Deploy
+
+The reference **"app on forge" deploy story** is the `petstore-platform`
+umbrella chart at
+[`examples/petstore/deploy/petstore-platform`](examples/petstore/deploy/petstore-platform/README.md).
+It composes the **published** `forge-platform` umbrella
+(`oci://ghcr.io/fromforgesoftware/charts/forge-platform` 0.1.0 — aegis, talos,
+gjallarhorn, gleipnir, console) with the petstore's own `catalog`, `adoptions`,
+and `petstore-ui` charts, wired with in-cluster conventions (aegis JWT issuer,
+gleipnir gRPC, gjallarhorn REST, talos audit, the UI's OIDC config). See its
+[runbook](examples/petstore/deploy/petstore-platform/README.md) for
+prerequisites, the required secrets/DBs/realm-and-client setup, and the
+`helm install` + login → browse → adopt walkthrough. Set `platform.enabled=false`
+to deploy the petstore against an already-running platform.
+
 ## Roadmap
 
 - ~~**examples/petstore-ui** (Phase 5b) — a Vue SPA on `vue-kit` / `ts-kit` with
   aegis OIDC login, driving the catalog/adoptions APIs.~~ ✅ done.
 - ~~Fuller **talos-audit** and **gjallarhorn** notification wiring (Phase 5c).~~ ✅ done.
+- ~~**Deploy story** (Phase 5d) — a `petstore-platform` umbrella that deploys the
+  petstore on the published forge platform.~~ ✅ done — see
+  [`examples/petstore/deploy/petstore-platform`](examples/petstore/deploy/petstore-platform/README.md).

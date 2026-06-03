@@ -1,0 +1,146 @@
+# Local / kind install overrides for petstore-platform.
+#
+#   helm install petstore ./examples/petstore/deploy/petstore-platform \
+#     -f examples/petstore/deploy/petstore-platform/envs/local/values.yaml
+#
+# DEV ONLY. The KEKs below are well-known dev keys (base64 of fixed strings) —
+# never use them outside a throwaway local cluster. Generate real ones with:
+#   head -c 32 /dev/urandom | base64
+#
+# This env assumes a single in-cluster Postgres reachable at `postgres:5432`
+# with a `petstore` database and a `postgres/postgres` superuser (the migrators
+# create the catalog/adoptions schemas). See the README for one way to stand
+# that up on kind.
+
+platform:
+  enabled: true
+
+  aegis:
+    # DEV ONLY KEK (base64 of "aegis-local-dev-key-not-for-prod").
+    crypto:
+      keyEncryptionKey: 'YWVnaXMtbG9jYWwtZGV2LWtleS1ub3QtZm9yLXByb2Q='
+    # Seed the petstore realm + the petstore-ui public OIDC client so the UI can
+    # sign in without any manual realm setup. Foundry's own client is seeded by
+    # the platform's bootstrap; here we add the petstore-ui callback. NOTE: the
+    # platform's aegis bootstrap seeds a single realm — if your published aegis
+    # chart only supports one bootstrap realm you must create the `petstore`
+    # realm + public client by hand (see README "Configure the realm").
+    bootstrap:
+      enabled: true
+      realm: petstore
+      realmDisplayName: Petstore
+      adminEmail: admin@petstore.local
+      adminPassword: admin1234
+      clientId: petstore-ui
+      redirectUris: 'http://petstore.localhost/callback'
+    image:
+      pullPolicy: IfNotPresent
+    database:
+      host: postgres
+      port: '5432'
+      name: forge
+      schema: aegis
+      ssl: disable
+      username: postgres
+      password: postgres
+    autoscaling: { enabled: false }
+    podDisruptionBudget: { enabled: false }
+
+  gleipnir:
+    # DEV ONLY KEK (base64 of "gleipnir-local-dev-key-not-4-prod!!").
+    vault:
+      keyEncryptionKey: 'Z2xlaXBuaXItbG9jYWwtZGV2LWtleS1ub3QtNC1wcm9kISE='
+    image:
+      pullPolicy: IfNotPresent
+    database:
+      host: postgres
+      port: '5432'
+      name: forge
+      schema: gleipnir
+      ssl: disable
+      username: postgres
+      password: postgres
+    autoscaling: { enabled: false }
+    podDisruptionBudget: { enabled: false }
+
+  talos:
+    image:
+      pullPolicy: IfNotPresent
+    database:
+      host: postgres
+      port: '5432'
+      name: forge
+      schema: talos
+      ssl: disable
+      username: postgres
+      password: postgres
+    autoscaling: { enabled: false }
+    podDisruptionBudget: { enabled: false }
+
+  gjallarhorn:
+    image:
+      pullPolicy: IfNotPresent
+    database:
+      host: postgres
+      port: '5432'
+      name: forge
+      schema: gjallarhorn
+      ssl: disable
+      username: postgres
+      password: postgres
+    autoscaling: { enabled: false }
+    podDisruptionBudget: { enabled: false }
+
+catalog:
+  replicaCount: 1
+  image:
+    pullPolicy: IfNotPresent
+  aegisIssuer: 'http://petstore-aegis/realms/petstore'
+  auditSink: talos
+  talosGRPCAddr: 'petstore-talos:9090'
+  database:
+    host: postgres
+    port: '5432'
+    name: petstore
+    schema: catalog
+    ssl: disable
+    username: postgres
+    password: postgres
+  autoscaling: { enabled: false }
+  podDisruptionBudget: { enabled: false }
+
+adoptions:
+  replicaCount: 1
+  image:
+    pullPolicy: IfNotPresent
+  aegisIssuer: 'http://petstore-aegis/realms/petstore'
+  catalogURL: 'http://catalog'
+  gleipnirGRPCAddr: 'petstore-gleipnir:9090'
+  gjallarhornURL: 'http://petstore-gjallarhorn'
+  # Set after you seed a Gleipnir connection (see README).
+  paymentConnection: ''
+  feeCents: 5000
+  auditSink: talos
+  talosGRPCAddr: 'petstore-talos:9090'
+  database:
+    host: postgres
+    port: '5432'
+    name: petstore
+    schema: adoptions
+    ssl: disable
+    username: postgres
+    password: postgres
+  autoscaling: { enabled: false }
+  podDisruptionBudget: { enabled: false }
+
+petstore-ui:
+  replicaCount: 1
+  image:
+    pullPolicy: IfNotPresent
+  # Browser-reachable (ingress) hosts on kind. Adjust to your ingress setup.
+  config:
+    aegisIssuer: 'http://aegis.localhost/realms/petstore'
+    oidcClientId: 'petstore-ui'
+    oidcRedirectUri: 'http://petstore.localhost/callback'
+    catalogUrl: 'http://catalog.localhost'
+    adoptionsUrl: 'http://adoptions.localhost'

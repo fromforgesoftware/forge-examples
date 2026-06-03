@@ -1,0 +1,38 @@
+apiVersion: v2
+name: petstore-platform
+description: >-
+  Umbrella chart deploying the petstore example (catalog + adoptions + UI) on
+  top of the published forge-platform umbrella — the reference "app on forge"
+  deploy story.
+type: application
+version: 0.1.0
+appVersion: '1.0.0'
+keywords:
+  - petstore
+  - example
+  - forge
+  - umbrella
+maintainers:
+  - name: Forge
+dependencies:
+  # The published forge platform (aegis/talos/gjallarhorn/gleipnir + console).
+  # Gate it off (platform.enabled=false) to deploy petstore against a platform
+  # that is already running in the cluster.
+  - name: forge-platform
+    alias: platform
+    version: 0.1.0
+    repository: oci://ghcr.io/fromforgesoftware/charts
+    condition: platform.enabled
+  # Petstore's own charts, consumed locally from this repo.
+  - name: catalog
+    version: 0.1.0
+    repository: file://../catalog
+    condition: catalog.enabled
+  - name: adoptions
+    version: 0.1.0
+    repository: file://../adoptions
+    condition: adoptions.enabled
+  - name: petstore-ui
+    version: 0.1.0
+    repository: file://../../../petstore-ui/deploy
+    condition: petstore-ui.enabled

@@ -6,3 +6,7 @@
 /examples/petstore/petstore
 /examples/petstore/catalog
 /examples/petstore/adoptions
+
+# Helm dependency build artifacts (pulled/packaged subcharts + lock)
+**/charts/*.tgz
+**/Chart.lock

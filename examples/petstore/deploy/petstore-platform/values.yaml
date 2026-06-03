@@ -1,0 +1,137 @@
+# petstore-platform umbrella — defaults.
+#
+# These defaults assume the umbrella is installed as release `petstore`
+# (`helm install petstore ...`). Both the bundled forge-platform services and
+# the petstore services name their resources `<release>-<svc>`, so the platform
+# services resolve to petstore-aegis / petstore-talos / petstore-gjallarhorn /
+# petstore-gleipnir on the cluster DNS. We pin the petstore subcharts to stable
+# short names (catalog / adoptions / petstore-ui) via fullnameOverride so their
+# in-cluster URLs are predictable regardless of release name.
+#
+# REQUIRED before install (no safe default — services fail fast without them):
+#   platform.aegis.crypto.keyEncryptionKey     base64 32-byte KEK (aegis realm signing keys)
+#   platform.gleipnir.vault.keyEncryptionKey   base64 32-byte KEK (gleipnir credential vault)
+# See envs/local/values.yaml for DEV-ONLY example keys and the README runbook
+# for how to generate real ones.
+
+# ---------------------------------------------------------------------------
+# Platform conventions shared by the petstore wiring below. Edit these in one
+# place; they are referenced (copied) into the subchart blocks further down.
+# ---------------------------------------------------------------------------
+# The aegis realm the petstore trusts. The UI logs into this realm and the
+# services verify the resulting JWTs against its JWKS. This realm + a public
+# OIDC client are NOT auto-created by the platform — see the README runbook.
+# Issuer host is the in-cluster aegis service (release `petstore` => petstore-aegis).
+
+# ===========================================================================
+# forge-platform (aliased to `platform`). Set platform.enabled=false to deploy
+# petstore against an already-running platform in the same namespace/cluster.
+# ===========================================================================
+platform:
+  enabled: true
+
+  # Which platform services to run. The petstore needs aegis (auth), gleipnir
+  # (payment token vend+charge), gjallarhorn (notify) and talos (audit).
+  aegis: { enabled: true }
+  talos: { enabled: true }
+  gjallarhorn: { enabled: true }
+  gleipnir: { enabled: true }
+
+  # The forge console is optional for the petstore flow. Leave it on so you can
+  # administer the platform (realms, connections) from the Foundry UI.
+  forge:
+    enabled: true
+
+  # ---- REQUIRED SECRETS (set these, or point at existingSecret) ----
+  aegis:
+    enabled: true
+    crypto:
+      # base64-encoded 32 bytes. REQUIRED. Set via -f envs/local/values.yaml
+      # (dev) or --set platform.aegis.crypto.keyEncryptionKey=... / existingSecret.
+      keyEncryptionKey: ''
+      existingSecret: ''
+  gleipnir:
+    enabled: true
+    vault:
+      # base64-encoded 32 bytes. REQUIRED for local/dev (no Cloud KMS).
+      keyEncryptionKey: ''
+      existingSecret: ''
+      kmsKey: ''
+
+# ===========================================================================
+# Petstore catalog service (file://../catalog).
+# ===========================================================================
+catalog:
+  enabled: true
+  # Stable in-cluster name so adoptions + the UI can address http://catalog.
+  fullnameOverride: catalog
+
+  # Token verification: the realm issuer whose JWKS catalog validates bearer
+  # tokens against. Points at the in-cluster aegis (release `petstore`).
+  aegisIssuer: 'http://petstore-aegis/realms/petstore'
+
+  # Audit pet.create events to talos over gRPC (in-cluster).
+  auditSink: talos
+  talosGRPCAddr: 'petstore-talos:9090'
+
+  # Postgres — YOU MUST PROVIDE THIS (see README). Catalog owns the `catalog`
+  # schema inside the target DB.
+  database:
+    host: postgres
+    port: '5432'
+    name: petstore
+    schema: catalog
+    ssl: disable
+    username: postgres
+    password: postgres
+
+# ===========================================================================
+# Petstore adoptions orchestrator (file://../adoptions).
+# ===========================================================================
+adoptions:
+  enabled: true
+  fullnameOverride: adoptions
+
+  aegisIssuer: 'http://petstore-aegis/realms/petstore'
+
+  # Downstream wiring — in-cluster service names (release `petstore`).
+  catalogURL: 'http://catalog'                 # petstore catalog (REST, S2S)
+  gleipnirGRPCAddr: 'petstore-gleipnir:9090'   # vend + charge (gRPC TokenService)
+  gjallarhornURL: 'http://petstore-gjallarhorn' # adoption-confirmation notify (REST)
+
+  # The Gleipnir connection id to vend a payment token from. YOU MUST seed a
+  # connection in gleipnir and set its id here (see README). Empty = the vend
+  # step has nothing to charge against.
+  paymentConnection: ''
+  feeCents: 5000
+
+  auditSink: talos
+  talosGRPCAddr: 'petstore-talos:9090'
+
+  # Postgres — YOU MUST PROVIDE THIS. Adoptions owns the `adoptions` schema.
+  database:
+    host: postgres
+    port: '5432'
+    name: petstore
+    schema: adoptions
+    ssl: disable
+    username: postgres
+    password: postgres
+
+# ===========================================================================
+# Petstore SPA (file://../../../petstore-ui/deploy). PUBLIC OIDC values only.
+# ===========================================================================
+petstore-ui:
+  enabled: true
+  fullnameOverride: petstore-ui
+
+  # Browser-facing config rendered into /config.js. The issuer/clientId must
+  # match the aegis realm + public client you create; the URLs must be the
+  # browser-reachable (ingress) hosts of aegis/catalog/adoptions, NOT the
+  # in-cluster service names. Overridden per-env (see envs/local).
+  config:
+    aegisIssuer: 'http://aegis.localhost/realms/petstore'
+    oidcClientId: 'petstore-ui'
+    oidcRedirectUri: 'http://petstore.localhost/callback'
+    catalogUrl: 'http://catalog.localhost'
+    adoptionsUrl: 'http://adoptions.localhost'
