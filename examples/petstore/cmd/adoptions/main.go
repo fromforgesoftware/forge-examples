@@ -1,5 +1,6 @@
 // Command adoptions boots the petstore adoptions service: aegis-protected
-// order placement that calls catalog (S2S), Gleipnir (vend), and Herald.
+// order placement that calls catalog (S2S), Gleipnir (vend + mock charge),
+// Talos (audit), and Gjallarhorn (notify).
 package main
 
 import (
@@ -17,7 +18,7 @@ func main() {
 		app.WithOpenAPI(
 			openapi.SpecTitle("Petstore Adoptions"),
 			openapi.SpecVersion(adoptions.Version),
-			openapi.SpecDescription("Adoption orders — catalog S2S, Gleipnir-vended payment, Herald notifications."),
+			openapi.SpecDescription("Adoption orders — catalog S2S, Gleipnir-vended payment charge, Talos audit, Gjallarhorn notifications."),
 			openapi.SpecSecurityScheme("bearerAuth", openapi.BearerJWT()),
 			openapi.DefaultSecurity("bearerAuth"),
 		),

@@ -19,8 +19,12 @@ aegisIssuer: 'http://forge-aegis/realms/master'
 # petstore projects deploy under their project name (catalog/adoptions).
 catalogURL: 'http://catalog'
 gleipnirGRPCAddr: 'forge-gleipnir:9090'
-heraldURL: 'http://forge-herald'
+gjallarhornURL: 'http://forge-gjallarhorn'
 paymentConnection: '' # seed a Gleipnir connection, then set its id here
+
+# Audit to stdout by default; point at Talos to forward events in-cluster.
+auditSink: stdout
+talosGRPCAddr: 'forge-talos:9090'
 
 autoscaling:
   enabled: false

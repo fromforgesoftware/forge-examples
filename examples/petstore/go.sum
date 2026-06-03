@@ -141,6 +141,8 @@ github.com/fromforgesoftware/gleipnir v0.1.0 h1:OT9AUYSx/zoQLspm6TkthathCB9IHIRz
 github.com/fromforgesoftware/gleipnir v0.1.0/go.mod h1:HCBD9yEuz8wTdTnEmEeywSs3z2LsPF5QX7qPC4SidwU=
 github.com/fromforgesoftware/go-kit v0.1.0 h1:3hIrURsktBxHP4IUy7ehUNyd21htzANjcicYRw+fe4c=
 github.com/fromforgesoftware/go-kit v0.1.0/go.mod h1:jK7TRGVnzktKMsYoowi6BHKZA4DmGjH5COQ/LSlCBhI=
+github.com/fromforgesoftware/talos v0.1.0 h1:TEF3drX1sQX+fC9jOUeLTrr5de8jcGF6BDxuBC08DtM=
+github.com/fromforgesoftware/talos v0.1.0/go.mod h1:x5VaqnVbbPUEBlguR7jcXCM8PJdkBmRFBRpGR6oRi4I=
 github.com/getsops/gopgagent v0.0.0-20241224165529-7044f28e491e h1:y/1nzrdF+RPds4lfoEpNhjfmzlgZtPqyO3jMzrqDQws=
 github.com/getsops/gopgagent v0.0.0-20241224165529-7044f28e491e/go.mod h1:awFzISqLJoZLm+i9QQ4SgMNHDqljH6jWV0B36V5MrUM=
 github.com/getsops/sops/v3 v3.8.1 h1:3A6KZEHAolxfXtlgRjncCotTGRiNaQFhSDOB2CUCojY=

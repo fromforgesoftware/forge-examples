@@ -16,7 +16,7 @@ import (
 )
 
 // AdoptionController exposes /v1/adoptions: place an order (which calls catalog
-// + Gleipnir + Herald) and read the caller's orders. Every route requires a
+// + Gleipnir + Gjallarhorn) and read the caller's orders. Every route requires a
 // valid aegis token; the owner is taken from the token, never the body.
 type AdoptionController struct {
 	adoptions app.AdoptionUsecase

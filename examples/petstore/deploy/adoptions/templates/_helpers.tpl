@@ -77,12 +77,16 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.aegisIssuer | quote }}
 - name: CATALOG_URL
   value: {{ .Values.catalogURL | quote }}
-- name: CONDUIT_GRPC_ADDR
-  value: {{ .Values.conduitGRPCAddr | quote }}
-- name: HERALD_URL
-  value: {{ .Values.heraldURL | quote }}
-- name: CONDUIT_PAYMENT_CONNECTION
+- name: GLEIPNIR_GRPC_ADDR
+  value: {{ .Values.gleipnirGRPCAddr | quote }}
+- name: GJALLARHORN_URL
+  value: {{ .Values.gjallarhornURL | quote }}
+- name: GLEIPNIR_PAYMENT_CONNECTION
   value: {{ .Values.paymentConnection | quote }}
 - name: ADOPTION_FEE_CENTS
   value: {{ .Values.feeCents | quote }}
+- name: AUDIT_SINK
+  value: {{ .Values.auditSink | default "stdout" | quote }}
+- name: TALOS_GRPC_ADDR
+  value: {{ .Values.talosGRPCAddr | quote }}
 {{- end -}}

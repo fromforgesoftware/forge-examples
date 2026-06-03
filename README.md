@@ -36,21 +36,27 @@ Both are Go services built on [`go-kit`](https://github.com/fromforgesoftware/go
 1. **catalog (REST, S2S)** — confirm the pet is `AVAILABLE`. The caller's bearer
    token is forwarded (passthrough) so catalog authorizes the same identity.
 2. **gleipnir (gRPC)** — vend a payment-provider token for the owner from a
-   configured gleipnir connection (`TokenService.Vend`). No real charge is made;
-   the example stops at vending the secret.
+   configured gleipnir connection (`TokenService.Vend`), then **charge the fee
+   with it**. A mock PSP charger (`platform/mockpayment`, a clearly-marked
+   stand-in for a real payment provider) consumes the vended token and returns a
+   charge id.
 3. **catalog (REST, S2S)** — mark the pet `ADOPTED`.
 4. persist the order (status `COMPLETED`).
-5. **notification service (REST)** — fire a "your adoption is complete"
-   notification (best-effort; a failure is logged, not fatal).
+5. **talos (audit)** — emit an `adoption.placed` audit event (actor from the JWT
+   claims) via go-kit's `audit.Sink`; `AUDIT_SINK` selects a stdout sink (dev) or
+   the talos gRPC sink. Catalog likewise audits `pet.create`.
+6. **gjallarhorn (REST)** — fire a richer adoption-confirmation notification
+   (pet name/species, owner, fee) — best-effort; a failure is logged, not fatal.
 
 ### Dependencies
 
-petstore consumes `go-kit` and `gleipnir` as **published Go modules** — no
-`replace` directives and no `go.work`. The versions are pinned in
+petstore consumes `go-kit`, `gleipnir`, and `talos` as **published Go modules** —
+no `replace` directives and no `go.work`. The versions are pinned in
 `examples/petstore/go.mod`:
 
 - `github.com/fromforgesoftware/go-kit v0.1.0`
 - `github.com/fromforgesoftware/gleipnir v0.1.0`
+- `github.com/fromforgesoftware/talos v0.1.0`
 
 CI builds against exactly these pinned versions (`GOWORK=off`).
 
@@ -87,4 +93,4 @@ npm run dev                                     # http://localhost:5173
 
 - ~~**examples/petstore-ui** (Phase 5b) — a Vue SPA on `vue-kit` / `ts-kit` with
   aegis OIDC login, driving the catalog/adoptions APIs.~~ ✅ done.
-- Fuller **talos-audit** and **gjallarhorn** notification wiring (Phase 5c).
+- ~~Fuller **talos-audit** and **gjallarhorn** notification wiring (Phase 5c).~~ ✅ done.

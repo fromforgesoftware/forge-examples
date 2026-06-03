@@ -34,7 +34,9 @@ type petDoc struct {
 	Data struct {
 		ID         string `json:"id"`
 		Attributes struct {
-			Status string `json:"status"`
+			Name    string `json:"name"`
+			Species string `json:"species"`
+			Status  string `json:"status"`
 		} `json:"attributes"`
 	} `json:"data"`
 }
@@ -59,7 +61,12 @@ func (c *Client) GetPet(ctx context.Context, petID string) (app.PetInfo, error) 
 	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil {
 		return app.PetInfo{}, err
 	}
-	return app.PetInfo{ID: doc.Data.ID, Status: doc.Data.Attributes.Status}, nil
+	return app.PetInfo{
+		ID:      doc.Data.ID,
+		Name:    doc.Data.Attributes.Name,
+		Species: doc.Data.Attributes.Species,
+		Status:  doc.Data.Attributes.Status,
+	}, nil
 }
 
 func (c *Client) SetPetStatus(ctx context.Context, petID, status string) error {

@@ -58,10 +58,14 @@ aegisIssuer: ''
 
 # Downstream services the adoptions flow calls.
 catalogURL: '' # catalog REST base (e.g. http://catalog)
-gleipnirGRPCAddr: '' # gleipnir gRPC TokenService (e.g. gleipnir:9090)
-heraldURL: '' # herald REST base (e.g. http://herald)
+gleipnirGRPCAddr: '' # gleipnir gRPC TokenService (e.g. forge-gleipnir:9090)
+gjallarhornURL: '' # gjallarhorn notification REST base (e.g. http://forge-gjallarhorn)
 paymentConnection: '' # the Gleipnir connection id to vend a payment token from
 feeCents: 5000 # adoption fee charged via the vended token
+
+# Audit sink: stdout (log events) or talos (forward to Talos over gRPC).
+auditSink: stdout
+talosGRPCAddr: '' # required when auditSink=talos (e.g. forge-talos:9090)
 
 # Pre-install / pre-upgrade migration job (runs /app/migrator).
 migrationJob:

@@ -56,6 +56,11 @@ database:
 # against (e.g. https://aegis/realms/petstore).
 aegisIssuer: ''
 
+# Audit sink for state-changing ops (e.g. pet-create): stdout (log events) or
+# talos (forward to Talos over gRPC).
+auditSink: stdout
+talosGRPCAddr: '' # required when auditSink=talos (e.g. forge-talos:9090)
+
 # Pre-install / pre-upgrade migration job (runs /app/migrator).
 migrationJob:
   enabled: true

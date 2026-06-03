@@ -75,4 +75,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
       key: DB_PASSWORD
 - name: AEGIS_ISSUER
   value: {{ .Values.aegisIssuer | quote }}
+- name: AUDIT_SINK
+  value: {{ .Values.auditSink | default "stdout" | quote }}
+- name: TALOS_GRPC_ADDR
+  value: {{ .Values.talosGRPCAddr | quote }}
 {{- end -}}

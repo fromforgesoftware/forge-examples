@@ -3,8 +3,9 @@
 How to build, migrate, run, and exercise the petstore example (catalog +
 adoptions). All paths below are relative to `examples/petstore/`.
 
-petstore consumes `go-kit v0.1.0` and `gleipnir v0.1.0` as published modules
-(pinned in `go.mod`, no `replace`, no `go.work`). Build with `GOWORK=off` so the
+petstore consumes `go-kit v0.1.0`, `gleipnir v0.1.0`, and `talos v0.1.0` as
+published modules (pinned in `go.mod`, no `replace`, no `go.work`). Build with
+`GOWORK=off` so the
 pinned versions resolve regardless of any ambient workspace.
 
 ## 0. Build, vet, test
@@ -63,20 +64,27 @@ Helm charts inject — see `deploy/*/templates/_helpers.tpl`).
 
 **catalog server (additional):**
 
-| var            | example                         | notes                          |
-| -------------- | ------------------------------- | ------------------------------ |
-| `AEGIS_ISSUER` | `https://aegis/realms/petstore` | realm whose JWKS verifies JWTs |
+| var               | example                         | notes                                            |
+| ----------------- | ------------------------------- | ------------------------------------------------ |
+| `AEGIS_ISSUER`    | `https://aegis/realms/petstore` | realm whose JWKS verifies JWTs                   |
+| `AUDIT_SINK`      | `stdout`                        | `stdout` (default) logs events; `talos` forwards |
+| `TALOS_GRPC_ADDR` | `localhost:9091`                | required when `AUDIT_SINK=talos`                 |
 
 **adoptions server (additional):**
 
-| var                          | example                         | notes                                       |
-| ---------------------------- | ------------------------------- | ------------------------------------------- |
-| `AEGIS_ISSUER`               | `https://aegis/realms/petstore` | realm whose JWKS verifies JWTs              |
-| `CATALOG_URL`                | `http://localhost:8080`         | catalog REST base (S2S, token passthrough)  |
-| `CONDUIT_GRPC_ADDR`          | `localhost:9090`                | gleipnir gRPC `TokenService` address        |
-| `CONDUIT_PAYMENT_CONNECTION` | `<connection-id>`               | gleipnir connection id to vend a token from |
-| `HERALD_URL`                 | `http://localhost:8082`         | notification service REST base              |
-| `ADOPTION_FEE_CENTS`         | `5000`                          | optional; defaults to 5000                  |
+| var                           | example                         | notes                                              |
+| ----------------------------- | ------------------------------- | -------------------------------------------------- |
+| `AEGIS_ISSUER`                | `https://aegis/realms/petstore` | realm whose JWKS verifies JWTs                     |
+| `CATALOG_URL`                 | `http://localhost:8080`         | catalog REST base (S2S, token passthrough)         |
+| `GLEIPNIR_GRPC_ADDR`          | `localhost:9090`                | gleipnir gRPC `TokenService` address               |
+| `GLEIPNIR_PAYMENT_CONNECTION` | `<connection-id>`               | gleipnir connection id to vend a payment token     |
+| `GJALLARHORN_URL`             | `http://localhost:8082`         | gjallarhorn notification REST base                 |
+| `ADOPTION_FEE_CENTS`          | `5000`                          | optional; defaults to 5000                         |
+| `AUDIT_SINK`                  | `stdout`                        | `stdout` (default) logs events; `talos` forwards   |
+| `TALOS_GRPC_ADDR`             | `localhost:9091`                | required when `AUDIT_SINK=talos`                   |
+
+The **catalog** server reads the same `AUDIT_SINK` / `TALOS_GRPC_ADDR` pair to
+audit pet-create.
 
 `AEGIS_ISSUER` **must equal** the `iss` aegis mints into its tokens — the
 verifier rejects any other issuer and fetches the JWKS at
@@ -99,10 +107,14 @@ DB_HOST=localhost DB_NAME=petstore DB_SCHEMA=adoptions DB_SSL=disable \
   DB_USER=postgres DB_PASSWORD=postgres \
   AEGIS_ISSUER=https://aegis/realms/petstore \
   CATALOG_URL=http://localhost:8080 \
-  CONDUIT_GRPC_ADDR=localhost:9090 \
-  CONDUIT_PAYMENT_CONNECTION=<connection-id> \
-  HERALD_URL=http://localhost:8082 ./bin/adoptions                    # :8080
+  GLEIPNIR_GRPC_ADDR=localhost:9090 \
+  GLEIPNIR_PAYMENT_CONNECTION=<connection-id> \
+  GJALLARHORN_URL=http://localhost:8082 \
+  AUDIT_SINK=stdout ./bin/adoptions                                   # :8080
 ```
+
+Set `AUDIT_SINK=talos TALOS_GRPC_ADDR=localhost:9091` (on either server) to
+forward audit events to Talos instead of logging them to stdout.
 
 Every request needs an aegis-minted bearer token:
 `Authorization: Bearer <jwt>`. No token → `401`. The token's owner (org claim if
@@ -125,8 +137,13 @@ curl -s -X POST http://localhost:8080/v1/adoptions \
 ```
 
 A successful adoption returns `status: COMPLETED`: adoptions confirmed
-availability in catalog, vended a payment token from gleipnir, marked the pet
-`ADOPTED`, persisted the order, and fired a notification.
+availability in catalog, vended a payment token from gleipnir and **charged the
+fee with it** (a mock PSP charge in `platform/mockpayment` consumes the vended
+token and returns a charge id), marked the pet `ADOPTED`, persisted the order,
+**emitted a `adoption.placed` audit event** (Talos or stdout per `AUDIT_SINK`),
+and fired a **richer adoption-confirmation notification** to gjallarhorn
+carrying the pet name/species, owner, and fee. Catalog likewise emits a
+`pet.create` audit event when a pet is added.
 
 ## 4. Container images
 
@@ -155,8 +172,9 @@ Key values (see each chart's `values.yaml` and `envs/<env>/values.yaml`):
 
 - `database.*` — host/port/name/schema/ssl + credentials (or `existingSecret`).
 - `aegisIssuer` — the realm issuer (both charts).
-- adoptions: `catalogURL`, `gleipnirGRPCAddr`, `heraldURL`, `paymentConnection`,
-  `feeCents`.
+- `auditSink` (`stdout`|`talos`) + `talosGRPCAddr` — audit wiring (both charts).
+- adoptions: `catalogURL`, `gleipnirGRPCAddr`, `gjallarhornURL`,
+  `paymentConnection`, `feeCents`.
 - `gatewaySecret` — shared HMAC gating any gateway-fronted admin routes.
 
 Install (example, local env):

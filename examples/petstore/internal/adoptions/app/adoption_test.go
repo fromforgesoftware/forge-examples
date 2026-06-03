@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/fromforgesoftware/go-kit/audit"
 	"github.com/fromforgesoftware/go-kit/resource"
 	"github.com/fromforgesoftware/go-kit/search"
 
@@ -40,10 +41,39 @@ func (f *fakeVendor) Vend(context.Context, string, string) (app.PaymentToken, er
 	return app.PaymentToken{AccessToken: "pay-tok"}, f.err
 }
 
-type fakeNotifier struct{ called bool }
+type fakeCharger struct {
+	err       error
+	gotToken  app.PaymentToken
+	gotAmount int
+	calls     int
+	chargeID  string
+}
 
-func (f *fakeNotifier) AdoptionCompleted(context.Context, domain.Adoption) error {
+func (f *fakeCharger) Charge(_ context.Context, token app.PaymentToken, amountCents int, _ string) (string, error) {
+	f.calls++
+	f.gotToken = token
+	f.gotAmount = amountCents
+	if f.chargeID == "" {
+		f.chargeID = "charge-1"
+	}
+	return f.chargeID, f.err
+}
+
+type fakeNotifier struct {
+	called bool
+	last   app.AdoptionNotification
+}
+
+func (f *fakeNotifier) AdoptionCompleted(_ context.Context, n app.AdoptionNotification) error {
 	f.called = true
+	f.last = n
+	return nil
+}
+
+type fakeAudit struct{ events []audit.Event }
+
+func (f *fakeAudit) Emit(_ context.Context, e audit.Event) error {
+	f.events = append(f.events, e)
 	return nil
 }
 
@@ -60,49 +90,108 @@ func (f *fakeOrders) List(context.Context, ...search.Option) (resource.ListRespo
 	return resource.NewListResponse([]domain.Adoption{f.created}, 1), nil
 }
 
-func newUsecase(cat *fakeCatalog, vendor *fakeVendor, notifier *fakeNotifier, orders *fakeOrders) app.AdoptionUsecase {
-	return app.NewAdoptionUsecase(orders, cat, vendor, notifier, "pay-conn", 5000)
+type usecaseDeps struct {
+	cat      *fakeCatalog
+	vendor   *fakeVendor
+	charger  *fakeCharger
+	notifier *fakeNotifier
+	audit    *fakeAudit
+	orders   *fakeOrders
+}
+
+func newDeps() *usecaseDeps {
+	return &usecaseDeps{
+		cat:      &fakeCatalog{pet: app.PetInfo{ID: "pet-1", Name: "Rex", Species: "dog", Status: "AVAILABLE"}},
+		vendor:   &fakeVendor{},
+		charger:  &fakeCharger{},
+		notifier: &fakeNotifier{},
+		audit:    &fakeAudit{},
+		orders:   &fakeOrders{},
+	}
+}
+
+func (d *usecaseDeps) usecase() app.AdoptionUsecase {
+	return app.NewAdoptionUsecase(d.orders, d.cat, d.vendor, d.charger, d.notifier, d.audit, "pay-conn", 5000)
 }
 
 func TestPlace_Success(t *testing.T) {
-	cat := &fakeCatalog{pet: app.PetInfo{ID: "pet-1", Status: "AVAILABLE"}}
-	vendor := &fakeVendor{}
-	notifier := &fakeNotifier{}
-	u := newUsecase(cat, vendor, notifier, &fakeOrders{})
+	d := newDeps()
+	u := d.usecase()
 
 	order, err := u.Place(context.Background(), "owner-1", "pet-1")
 	require.NoError(t, err)
 	assert.Equal(t, domain.AdoptionStatusCompleted, order.Status())
 	assert.Equal(t, 5000, order.FeeCents())
-	assert.Equal(t, 1, vendor.calls, "must vend a payment token")
-	assert.True(t, cat.setStatusCall)
-	assert.Equal(t, "ADOPTED", cat.statusSet)
-	assert.True(t, notifier.called)
+	assert.Equal(t, 1, d.vendor.calls, "must vend a payment token")
+	assert.True(t, d.cat.setStatusCall)
+	assert.Equal(t, "ADOPTED", d.cat.statusSet)
+	assert.True(t, d.notifier.called)
+}
+
+func TestPlace_ChargesWithVendedToken(t *testing.T) {
+	d := newDeps()
+	_, err := d.usecase().Place(context.Background(), "owner-1", "pet-1")
+	require.NoError(t, err)
+	assert.Equal(t, 1, d.charger.calls, "must charge once")
+	assert.Equal(t, "pay-tok", d.charger.gotToken.AccessToken, "charge must use the vended token")
+	assert.Equal(t, 5000, d.charger.gotAmount)
+}
+
+func TestPlace_ChargeFailureAborts(t *testing.T) {
+	d := newDeps()
+	d.charger.err = errors.New("psp declined")
+	_, err := d.usecase().Place(context.Background(), "owner-1", "pet-1")
+	require.Error(t, err)
+	assert.False(t, d.cat.setStatusCall, "pet must not be marked adopted if the charge fails")
+}
+
+func TestPlace_EmitsAuditEvent(t *testing.T) {
+	d := newDeps()
+	order, err := d.usecase().Place(context.Background(), "owner-1", "pet-1")
+	require.NoError(t, err)
+	require.Len(t, d.audit.events, 1, "must emit one audit event")
+	e := d.audit.events[0]
+	assert.Equal(t, "adoption.placed", e.Action)
+	assert.Equal(t, "adoptions", e.ResourceType)
+	assert.Equal(t, order.ID(), e.ResourceID)
+	assert.Equal(t, "owner-1", e.ActorID)
+}
+
+func TestPlace_NotifiesWithEnrichedPayload(t *testing.T) {
+	d := newDeps()
+	order, err := d.usecase().Place(context.Background(), "owner-1", "pet-1")
+	require.NoError(t, err)
+	n := d.notifier.last
+	assert.Equal(t, order.ID(), n.AdoptionID)
+	assert.Equal(t, "owner-1", n.Owner)
+	assert.Equal(t, "Rex", n.PetName)
+	assert.Equal(t, "dog", n.PetSpecies)
+	assert.Equal(t, 5000, n.FeeCents)
 }
 
 func TestPlace_PetNotAvailable(t *testing.T) {
-	cat := &fakeCatalog{pet: app.PetInfo{ID: "pet-1", Status: "ADOPTED"}}
-	vendor := &fakeVendor{}
-	u := newUsecase(cat, vendor, &fakeNotifier{}, &fakeOrders{})
+	d := newDeps()
+	d.cat.pet = app.PetInfo{ID: "pet-1", Status: "ADOPTED"}
 
-	_, err := u.Place(context.Background(), "owner-1", "pet-1")
+	_, err := d.usecase().Place(context.Background(), "owner-1", "pet-1")
 	require.Error(t, err)
-	assert.Zero(t, vendor.calls, "must not vend when the pet is unavailable")
-	assert.False(t, cat.setStatusCall)
+	assert.Zero(t, d.vendor.calls, "must not vend when the pet is unavailable")
+	assert.Zero(t, d.charger.calls)
+	assert.False(t, d.cat.setStatusCall)
 }
 
 func TestPlace_VendFailureAborts(t *testing.T) {
-	cat := &fakeCatalog{pet: app.PetInfo{ID: "pet-1", Status: "AVAILABLE"}}
-	vendor := &fakeVendor{err: errors.New("kms down")}
-	u := newUsecase(cat, vendor, &fakeNotifier{}, &fakeOrders{})
+	d := newDeps()
+	d.vendor.err = errors.New("kms down")
 
-	_, err := u.Place(context.Background(), "owner-1", "pet-1")
+	_, err := d.usecase().Place(context.Background(), "owner-1", "pet-1")
 	require.Error(t, err)
-	assert.False(t, cat.setStatusCall, "pet must not be marked adopted if payment fails")
+	assert.Zero(t, d.charger.calls, "must not charge if vending fails")
+	assert.False(t, d.cat.setStatusCall, "pet must not be marked adopted if payment fails")
 }
 
 func TestPlace_RequiresOwnerAndPet(t *testing.T) {
-	u := newUsecase(&fakeCatalog{}, &fakeVendor{}, &fakeNotifier{}, &fakeOrders{})
+	u := newDeps().usecase()
 	_, err := u.Place(context.Background(), "", "pet-1")
 	assert.Error(t, err)
 	_, err = u.Place(context.Background(), "owner-1", "")
