@@ -6,11 +6,14 @@ on:
 jobs:
   go:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/petstore
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: examples/petstore/go.mod
       - name: build + vet + test (pinned published modules)
         env:
           GOWORK: off
@@ -25,5 +28,5 @@ jobs:
       - uses: azure/setup-helm@v4
       - name: helm lint
         run: |
-          helm lint deploy/catalog
-          helm lint deploy/adoptions
+          helm lint examples/petstore/deploy/catalog
+          helm lint examples/petstore/deploy/adoptions

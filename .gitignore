@@ -1,3 +1,8 @@
 /dist/
 *.out
+
+# Go build outputs (e.g. `go build` dropping a binary in a package dir)
 /petstore
+/examples/petstore/petstore
+/examples/petstore/catalog
+/examples/petstore/adoptions
