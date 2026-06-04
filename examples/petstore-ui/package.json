@@ -11,7 +11,7 @@
 	},
 	"dependencies": {
 		"@fromforgesoftware/ts-kit": "^0.1.1",
-		"@fromforgesoftware/vue-kit": "^0.1.1",
+		"@fromforgesoftware/vue-kit": "^0.1.2",
 		"@lucide/vue": "^1.17.0",
 		"pinia": "^2.3.1",
 		"vue": "^3.5.0",
