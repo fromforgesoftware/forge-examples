@@ -5,6 +5,7 @@
 #
 #   /                     -> petstore-ui (the SPA)
 #   /realms/...           -> aegis        (OIDC discovery / authorize / token / jwks)
+#   /auth/...             -> aegis        (hosted login/consent UI; authorize redirects here)
 #   /api/catalog/...      -> catalog      (prefix stripped)
 #   /api/adoptions/...    -> adoptions    (prefix stripped)
 ---
@@ -41,6 +42,9 @@ spec:
       http:
         paths:
           - path: /realms
+            pathType: Prefix
+            backend: { service: { name: petstore-aegis, port: { number: 80 } } }
+          - path: /auth
             pathType: Prefix
             backend: { service: { name: petstore-aegis, port: { number: 80 } } }
           - path: /
