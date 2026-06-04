@@ -30,6 +30,10 @@ COPY nginx/docker-entrypoint.sh /docker-entrypoint.d/40-render-config.sh
 RUN chmod +x /docker-entrypoint.d/40-render-config.sh
 
 COPY --from=build /app/dist /usr/share/nginx/html
+# The container runs as the non-root nginx user (uid 101); make the web root
+# writable so the entrypoint can render config.js at start.
+RUN chown -R 101:101 /usr/share/nginx/html /var/cache/nginx \
+ && sed -i -e 's,pid[[:space:]].*nginx\.pid;,pid /tmp/nginx.pid;,' -e '/^user[[:space:]]/d' /etc/nginx/nginx.conf
 
 EXPOSE 8080
 # nginx:alpine's stock entrypoint runs /docker-entrypoint.d/* then execs nginx.
