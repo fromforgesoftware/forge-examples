@@ -22,10 +22,14 @@ CTX     := kind-$(CLUSTER)
 KUBECTL := kubectl --context $(CTX) -n $(NAMESPACE)
 HELM    := helm --kube-context $(CTX) -n $(NAMESPACE)
 
-.PHONY: dev up cluster deps postgres install wait status forward next down clean help
+.PHONY: dev up cluster deps images postgres install wait status forward next down clean help
 
-## dev: full local bring-up (cluster -> deps -> postgres -> install -> wait -> next)
-dev up: cluster deps postgres install wait status next
+# forge-examples repo root (4 levels up from this chart dir).
+EXROOT := ../../../..
+TAG    := 1.0.0
+
+## dev: full local bring-up (cluster -> deps -> images -> postgres -> install -> wait)
+dev up: cluster deps images postgres install wait status next
 
 ## cluster: create the kind cluster if it doesn't exist
 cluster:
@@ -37,6 +41,19 @@ cluster:
 deps:
 	@echo "==> helm dependency build (pulls forge-platform from ghcr)"
 	@$(HELM) dependency build .
+
+## images: build the petstore example images and load them into kind
+##   (the platform images are pulled from ghcr; they must be multi-arch for your
+##    node's arch — on Apple Silicon that means linux/arm64. The example images
+##    are built here for the host arch, so they always match.)
+images:
+	@echo "==> building petstore example images ($(TAG))"
+	docker build -f $(EXROOT)/examples/petstore/Dockerfile.catalog   -t ghcr.io/fromforgesoftware/catalog:$(TAG)   $(EXROOT)
+	docker build -f $(EXROOT)/examples/petstore/Dockerfile.adoptions -t ghcr.io/fromforgesoftware/adoptions:$(TAG) $(EXROOT)
+	cd $(EXROOT)/examples/petstore-ui && DOCKER_BUILDKIT=1 NODE_AUTH_TOKEN="$$(gh auth token)" \
+		docker build --secret id=npm_token,env=NODE_AUTH_TOKEN -t ghcr.io/fromforgesoftware/petstore-ui:$(TAG) .
+	@echo "==> loading example images into kind"
+	kind load docker-image ghcr.io/fromforgesoftware/catalog:$(TAG) ghcr.io/fromforgesoftware/adoptions:$(TAG) ghcr.io/fromforgesoftware/petstore-ui:$(TAG) --name $(CLUSTER)
 
 ## postgres: deploy the dev Postgres, wait for it, ensure the `forge` DB exists
 postgres:
