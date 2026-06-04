@@ -15,6 +15,12 @@
 platform:
   enabled: true
 
+  # The forge admin console is not on the petstore user path (the SPA talks to
+  # aegis + catalog/adoptions directly) and needs extra config (DB/bootstrap/
+  # console bundles). Disabled for this example; enable + configure separately.
+  forge:
+    enabled: false
+
   aegis:
     # DEV ONLY KEK (base64 of "aegis-local-dev-key-not-for-prod").
     crypto:
@@ -47,9 +53,10 @@ platform:
     podDisruptionBudget: { enabled: false }
 
   gleipnir:
-    # DEV ONLY KEK (base64 of "gleipnir-local-dev-key-not-4-prod!!").
+    # DEV ONLY KEK — MUST decode to exactly 32 bytes (base64 of
+    # "gleipnir-local-dev-key-32bytes!!").
     vault:
-      keyEncryptionKey: 'Z2xlaXBuaXItbG9jYWwtZGV2LWtleS1ub3QtNC1wcm9kISE='
+      keyEncryptionKey: 'Z2xlaXBuaXItbG9jYWwtZGV2LWtleS0zMmJ5dGVzISE='
     image:
       pullPolicy: IfNotPresent
     database:
@@ -64,6 +71,9 @@ platform:
     podDisruptionBudget: { enabled: false }
 
   talos:
+    # DEV ONLY: talos refuses to start without a stream HMAC secret unless this
+    # opt-out is set (the audit live-tail is secure-by-default).
+    wsAllowInsecure: true
     image:
       pullPolicy: IfNotPresent
     database:
