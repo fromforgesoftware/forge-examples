@@ -12,7 +12,7 @@
 
 PETSTORE := examples/petstore/deploy/petstore-platform
 
-.PHONY: dev up cluster deps images postgres install wait status forward next down clean help
+.PHONY: dev up cluster ingress deps images postgres install wait status forward next down clean help
 
-dev up cluster deps images postgres install wait status forward next down clean help:
+dev up cluster ingress deps images postgres install wait status forward next down clean help:
 	@$(MAKE) -C $(PETSTORE) $@

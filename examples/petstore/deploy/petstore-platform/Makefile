@@ -20,22 +20,35 @@ TIMEOUT ?= 10m
 
 CTX     := kind-$(CLUSTER)
 KUBECTL := kubectl --context $(CTX) -n $(NAMESPACE)
+KCTL    := kubectl --context $(CTX)
 HELM    := helm --kube-context $(CTX) -n $(NAMESPACE)
+INGRESS_NGINX ?= https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
 
-.PHONY: dev up cluster deps images postgres install wait status forward next down clean help
+.PHONY: dev up cluster ingress deps images postgres install wait status forward next down clean help
 
 # forge-examples repo root (4 levels up from this chart dir).
 EXROOT := ../../../..
 TAG    := 1.0.0
 
-## dev: full local bring-up (cluster -> deps -> images -> postgres -> install -> wait)
-dev up: cluster deps images postgres install wait status next
+## dev: full local bring-up (cluster -> deps -> images -> postgres -> install -> ingress)
+dev up: cluster deps images postgres install ingress wait status next
 
-## cluster: create the kind cluster if it doesn't exist
+## cluster: create the kind cluster (with ingress host port-mappings) if absent
 cluster:
 	@kind get clusters 2>/dev/null | grep -qx '$(CLUSTER)' \
 		&& echo "==> kind cluster '$(CLUSTER)' already exists" \
-		|| { echo "==> creating kind cluster '$(CLUSTER)'"; kind create cluster --name '$(CLUSTER)'; }
+		|| { echo "==> creating kind cluster '$(CLUSTER)'"; kind create cluster --name '$(CLUSTER)' --config kind-config.yaml; }
+
+## ingress: install ingress-nginx, route petstore.localhost, rewrite in-cluster DNS
+ingress:
+	@echo "==> installing ingress-nginx"
+	@$(KCTL) apply -f $(INGRESS_NGINX)
+	@echo "==> waiting for ingress-nginx controller"
+	@$(KCTL) wait --namespace ingress-nginx --for=condition=Ready pod \
+		-l app.kubernetes.io/component=controller --timeout=240s
+	@echo "==> routing petstore.localhost + coredns rewrite"
+	@$(KUBECTL) apply -f ingress.yaml
+	@bash coredns-rewrite.sh $(CTX)
 
 ## deps: pull the published forge-platform chart + build local subcharts
 deps:
@@ -83,26 +96,20 @@ status:
 	@echo "==> pods"; $(KUBECTL) get pods -o wide
 	@echo "==> jobs (migrations)"; $(KUBECTL) get jobs
 
-## forward: port-forward the UI (8080) and forge console (8081) for quick access
+## forward: not needed — ingress serves everything at http://petstore.localhost
 forward:
-	@echo "UI:      http://localhost:8080   console: http://localhost:8081"
-	@echo "(NOTE: the SPA's OIDC redirect uses the ingress hosts in envs/local;"
-	@echo " for port-forward testing set petstore-ui.config.* to localhost URLs and"
-	@echo " register a matching redirect URI on the aegis client.)"
-	@$(KUBECTL) port-forward svc/petstore-ui 8080:80 & \
-	 $(KUBECTL) port-forward svc/$(RELEASE)-forge 8081:8080 & wait
+	@echo "Open http://petstore.localhost (ingress serves the SPA + APIs + aegis"
+	@echo "on one origin via the host :80 port-mapping; *.localhost resolves to"
+	@echo "127.0.0.1 on macOS, so no /etc/hosts edit is needed)."
 
 ## next: print the steps that can't be automated
 next:
 	@echo ""
-	@echo "==> petstore-platform is up. Manual steps to finish (see README.md):"
-	@echo "  1. aegis realm + PUBLIC OIDC client:"
-	@echo "       envs/local asks aegis to bootstrap realm 'petstore' + client 'petstore-ui'."
-	@echo "       If your aegis only bootstraps one realm, create realm 'petstore' + a public"
-	@echo "       PKCE client 'petstore-ui' (redirect http://petstore.localhost/callback) by hand."
-	@echo "  2. gleipnir payment connection — create one, then:"
-	@echo "       helm upgrade $(RELEASE) . -f $(VALUES) --set adoptions.paymentConnection=<id>"
-	@echo "  3. Access: 'make forward' (port-forward) or set up ingress + *.localhost hosts."
+	@echo "==> petstore is up. Open: http://petstore.localhost"
+	@echo "  - login is aegis OIDC/PKCE; aegis bootstraps realm 'petstore' + the"
+	@echo "    public 'petstore-ui' client (redirect http://petstore.localhost/callback)."
+	@echo "  - to enable the adopt charge, seed a gleipnir payment connection, then:"
+	@echo "      helm upgrade $(RELEASE) . -f $(VALUES) --set adoptions.paymentConnection=<id>"
 	@echo "  Then: login -> browse -> adopt (aegis auth, gleipnir vend+charge, talos audit, gjallarhorn notify)."
 
 ## down: uninstall the release + dev postgres (keeps the cluster)

@@ -1,0 +1,48 @@
+# Single-origin routing for the local petstore demo: everything is served from
+# http://petstore.localhost so the browser makes same-origin requests (no CORS)
+# and the OIDC issuer (http://petstore.localhost/realms/petstore) is identical
+# from the browser and, via the CoreDNS rewrite, from in-cluster services.
+#
+#   /                     -> petstore-ui (the SPA)
+#   /realms/...           -> aegis        (OIDC discovery / authorize / token / jwks)
+#   /api/catalog/...      -> catalog      (prefix stripped)
+#   /api/adoptions/...    -> adoptions    (prefix stripped)
+---
+# APIs: strip the /api/<svc> prefix before forwarding.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: petstore-api
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: petstore.localhost
+      http:
+        paths:
+          - path: /api/catalog(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: catalog, port: { number: 80 } } }
+          - path: /api/adoptions(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: adoptions, port: { number: 80 } } }
+---
+# aegis (path preserved) + the SPA fallback.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: petstore-app
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: petstore.localhost
+      http:
+        paths:
+          - path: /realms
+            pathType: Prefix
+            backend: { service: { name: petstore-aegis, port: { number: 80 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: petstore-ui, port: { number: 80 } } }

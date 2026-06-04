@@ -105,7 +105,7 @@ catalog:
   replicaCount: 1
   image:
     pullPolicy: IfNotPresent
-  aegisIssuer: 'http://petstore-aegis/realms/petstore'
+  aegisIssuer: 'http://petstore.localhost/realms/petstore'
   auditSink: talos
   talosGRPCAddr: 'petstore-talos:9090'
   database:
@@ -123,7 +123,7 @@ adoptions:
   replicaCount: 1
   image:
     pullPolicy: IfNotPresent
-  aegisIssuer: 'http://petstore-aegis/realms/petstore'
+  aegisIssuer: 'http://petstore.localhost/realms/petstore'
   catalogURL: 'http://catalog'
   gleipnirGRPCAddr: 'petstore-gleipnir:9090'
   gjallarhornURL: 'http://petstore-gjallarhorn'
@@ -149,8 +149,8 @@ petstore-ui:
     pullPolicy: IfNotPresent
   # Browser-reachable (ingress) hosts on kind. Adjust to your ingress setup.
   config:
-    aegisIssuer: 'http://aegis.localhost/realms/petstore'
+    aegisIssuer: 'http://petstore.localhost/realms/petstore'
     oidcClientId: 'petstore-ui'
     oidcRedirectUri: 'http://petstore.localhost/callback'
-    catalogUrl: 'http://catalog.localhost'
-    adoptionsUrl: 'http://adoptions.localhost'
+    catalogUrl: 'http://petstore.localhost/api/catalog'
+    adoptionsUrl: 'http://petstore.localhost/api/adoptions'
