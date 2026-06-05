@@ -42,8 +42,11 @@ const router = createRouter({
 // Auth guard: public routes always pass; everything else needs a valid token.
 // `restore()` runs once to silently re-auth from a persisted refresh token
 // after a full reload (the in-memory access token is gone). Unauthenticated
-// users are bounced to /login with the intended path remembered as a query so
-// the callback can return them there.
+// users go STRAIGHT to the aegis OIDC login (no SPA sign-in page): the guard
+// starts the authorize redirect itself and aborts the in-app navigation. The
+// intended path is remembered (login() stashes it) so the callback returns
+// the user there. If starting the redirect fails (e.g. discovery is down) we
+// fall back to /login, which surfaces the error with a retry.
 router.beforeEach(async (to) => {
 	const auth = useAuthStore();
 	if (!auth.initialized) await auth.restore();
@@ -54,7 +57,13 @@ router.beforeEach(async (to) => {
 	const token = await auth.validToken();
 	if (token) return true;
 
-	return { name: 'login', query: { returnTo: to.fullPath } };
+	try {
+		await auth.login(to.fullPath);
+		return false; // browser is redirecting to aegis; cancel this navigation
+	} catch (e) {
+		const error = e instanceof Error ? e.message : 'Could not start sign-in.';
+		return { name: 'login', query: { error } };
+	}
 });
 
 export default router;
